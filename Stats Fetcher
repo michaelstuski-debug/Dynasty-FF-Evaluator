@@ -1,0 +1,465 @@
+"""
+CFBD Auto-Fetcher
+=================
+Pulls college stats and draft data from the College Football Data API
+and feeds them directly into the dynasty model.
+
+Usage:
+    python cfbd_fetcher.py --players "Malik Nabers,Rome Odunze,Brock Bowers" --year 2024
+    python cfbd_fetcher.py --file my_players.txt --year 2025
+    python cfbd_fetcher.py --draft-class 2024   # pull entire draft class
+
+Set your API key in the CFBD_API_KEY variable below, or via environment variable:
+    export CFBD_API_KEY="your_key_here"
+"""
+
+import os
+import sys
+import json
+import time
+import argparse
+import requests
+import pandas as pd
+from typing import Optional
+from dataclasses import dataclass
+
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+CFBD_API_KEY = os.environ.get("CFBD_API_KEY", "YOUR_API_KEY_HERE")
+BASE_URL = "https://api.collegefootballdata.com"
+POSITIONS = {"QB", "RB", "WR", "TE"}
+
+# ── API CLIENT ────────────────────────────────────────────────────────────────
+
+class CFBDClient:
+    def __init__(self, api_key: str):
+        self.session = requests.Session()
+        self.session.headers.update({
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+        })
+
+    def get(self, endpoint: str, params: dict = None) -> list | dict:
+        url = f"{BASE_URL}{endpoint}"
+        resp = self.session.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        time.sleep(0.3)  # polite rate limiting
+        return resp.json()
+
+    def search_player(self, name: str) -> list:
+        return self.get("/player/search", {"searchTerm": name, "limit": 5})
+
+    def get_player_stats(self, player_id: int, year: int = None) -> list:
+        """Season-level stats for a player."""
+        params = {"playerId": player_id}
+        if year:
+            params["year"] = year
+        return self.get("/stats/player/season", params)
+
+    def get_player_career_stats(self, player_id: int) -> list:
+        """All season stats for a player."""
+        return self.get("/stats/player/season", {"playerId": player_id})
+
+    def get_team_stats(self, team: str, year: int) -> list:
+        """Team-level season stats for dominator rating."""
+        return self.get("/stats/season", {"team": team, "year": year})
+
+    def get_draft_picks(self, year: int = None, position: str = None) -> list:
+        """NFL draft picks from CFBD."""
+        params = {}
+        if year: params["year"] = year
+        if position: params["position"] = position
+        return self.get("/draft/picks", params)
+
+    def get_combine_data(self, year: int = None, position: str = None) -> list:
+        """NFL combine data."""
+        params = {}
+        if year: params["year"] = year
+        if position: params["position"] = position
+        return self.get("/draft/picks", params)  # combine data embedded in draft picks
+
+
+# ── DATA BUILDERS ─────────────────────────────────────────────────────────────
+
+def fetch_player_profile(client: CFBDClient, name: str) -> Optional[dict]:
+    """Search for a player and return their profile."""
+    results = client.search_player(name)
+    if not results:
+        print(f"  ⚠️  No results for '{name}'")
+        return None
+
+    # Try exact name match first
+    for r in results:
+        full = f"{r.get('firstName','')} {r.get('lastName','')}".strip()
+        if full.lower() == name.lower():
+            return r
+
+    # Return best match
+    r = results[0]
+    full = f"{r.get('firstName','')} {r.get('lastName','')}".strip()
+    print(f"  ℹ️  '{name}' → best match: '{full}' ({r.get('team','')})")
+    return r
+
+
+def aggregate_career_stats(stats: list, position: str) -> dict:
+    """
+    Aggregate season-level stats into career totals.
+    Returns a flat dict of summed/averaged values.
+    """
+    if not stats:
+        return {}
+
+    df = pd.DataFrame(stats)
+
+    # Stat categories vary by position
+    agg = {
+        "seasons": df["year"].nunique(),
+        "games": 0,
+    }
+
+    def safe_sum(col):
+        return int(df[col].sum()) if col in df.columns else 0
+
+    def safe_mean(col):
+        return round(float(df[col].mean()), 2) if col in df.columns else 0.0
+
+    # All stats come as rows with 'statType' and 'stat' columns
+    # Pivot for easier access
+    try:
+        pivot = df.pivot_table(index="year", columns="statType", values="stat", aggfunc="sum")
+    except Exception:
+        pivot = pd.DataFrame()
+
+    def pv(col):
+        return int(pivot[col].sum()) if col in pivot.columns else 0
+
+    if position == "QB":
+        agg.update({
+            "completions":       pv("COMPLETIONS"),
+            "attempts":          pv("ATT"),
+            "pass_yards":        pv("YDS"),
+            "pass_tds":          pv("TD"),
+            "interceptions":     pv("INT"),
+            "rush_yards_qb":     pv("RUSHING YDS") or pv("YDS.1"),
+            "years_as_starter":  df["year"].nunique(),
+            "qb_seasons":        df["year"].nunique(),
+        })
+    elif position == "RB":
+        agg.update({
+            "rush_yards":        pv("YDS") or pv("RUSHING YDS"),
+            "rush_attempts":     pv("ATT") or pv("CAR"),
+            "rush_tds":          pv("TD") or pv("RUSHING TD"),
+            "rec_yards":         pv("RECEIVING YDS") or pv("REC YDS"),
+            "receptions":        pv("REC"),
+            "rec_tds":           pv("RECEIVING TD") or pv("REC TD"),
+            "targets":           pv("TARGETS") if "TARGETS" in (pivot.columns if not pivot.empty else []) else 0,
+        })
+    elif position in ("WR", "TE"):
+        agg.update({
+            "rec_yards":         pv("YDS") or pv("RECEIVING YDS"),
+            "receptions":        pv("REC"),
+            "rec_tds":           pv("TD") or pv("RECEIVING TD"),
+            "targets":           pv("TARGETS") if "TARGETS" in (pivot.columns if not pivot.empty else []) else 0,
+        })
+
+    return agg
+
+
+def fetch_team_totals(client: CFBDClient, team: str, year: int) -> dict:
+    """Pull team passing/rushing totals for dominator rating."""
+    try:
+        stats = client.get_team_stats(team, year)
+        if not stats:
+            return {}
+        df = pd.DataFrame(stats)
+        # Filter to the team
+        df = df[df["team"].str.lower() == team.lower()] if "team" in df.columns else df
+
+        def gs(stat_name):
+            row = df[df["statName"] == stat_name] if "statName" in df.columns else pd.DataFrame()
+            return int(row["statValue"].values[0]) if len(row) else 0
+
+        return {
+            "team_pass_yards":    gs("netPassingYards"),
+            "team_pass_attempts": gs("passAttempts"),
+            "team_rush_yards":    gs("rushingYards"),
+            "team_total_tds":     gs("totalTDs") or (gs("passingTDs") + gs("rushingTDs")),
+        }
+    except Exception as e:
+        print(f"  ⚠️  Could not fetch team stats for {team} {year}: {e}")
+        return {}
+
+
+def fetch_draft_info(client: CFBDClient, name: str, draft_year: int) -> dict:
+    """Find a player's draft round/pick and combine data."""
+    try:
+        picks = client.get_draft_picks(year=draft_year)
+        for pick in picks:
+            full = f"{pick.get('name','')}"
+            if full.lower() == name.lower():
+                return {
+                    "draft_round":      pick.get("round"),
+                    "draft_pick":       pick.get("pick"),
+                    "forty_time":       pick.get("combineFortyYard"),
+                    "height_inches":    _height_to_inches(pick.get("height")),
+                    "weight_lbs":       pick.get("weight"),
+                    "vertical_inches":  pick.get("combineVertical"),
+                    "shuttle_seconds":  pick.get("combineShuttle"),
+                    "three_cone":       pick.get("combineThreeCone"),
+                }
+        print(f"  ℹ️  '{name}' not found in {draft_year} draft picks")
+        return {}
+    except Exception as e:
+        print(f"  ⚠️  Draft data error for {name}: {e}")
+        return {}
+
+
+def _height_to_inches(height_str) -> Optional[float]:
+    """Convert '6-2' or '6\'2"' to inches."""
+    if not height_str:
+        return None
+    try:
+        if isinstance(height_str, (int, float)):
+            return float(height_str)
+        s = str(height_str).replace("'", "-").replace('"', "").strip()
+        parts = s.split("-")
+        if len(parts) == 2:
+            return int(parts[0]) * 12 + int(parts[1])
+    except Exception:
+        pass
+    return None
+
+
+def estimate_breakout_age(client: CFBDClient, player_id: int, position: str,
+                          threshold: float = None) -> Optional[float]:
+    """
+    Calculate breakout age from season-level stats.
+    Breakout = first season at/above dominator threshold.
+    Default thresholds: RB/TE=15%, WR=20%, QB=N/A
+    """
+    if position == "QB":
+        return None
+    if threshold is None:
+        threshold = 20.0 if position == "WR" else 15.0
+
+    try:
+        seasons = client.get_player_career_stats(player_id)
+        if not seasons:
+            return None
+
+        df = pd.DataFrame(seasons)
+        years = sorted(df["year"].unique())
+
+        for yr in years:
+            yr_stats = df[df["year"] == yr]
+            # Simple proxy: look for high-production seasons
+            # Full dominator requires team totals per year — approximate here
+            rec_yds = 0
+            try:
+                pivot = yr_stats.pivot_table(index="year", columns="statType", values="stat", aggfunc="sum")
+                rec_yds = pivot.get("YDS", pd.Series([0])).values[0] if not pivot.empty else 0
+            except Exception:
+                pass
+
+            # Rough breakout: WR >700 rec yards, TE/RB >500
+            breakout_yds = 700 if position == "WR" else 500
+            if rec_yds >= breakout_yds:
+                # Estimate age: draft year minus (current year - season year)
+                return None  # Return None; age_at_draft will be set separately
+    except Exception:
+        pass
+    return None
+
+
+# ── MAIN FETCH FUNCTION ───────────────────────────────────────────────────────
+
+def fetch_players(
+    player_names: list[str],
+    draft_year: int,
+    api_key: str = CFBD_API_KEY,
+    output_csv: str = "fetched_players.csv",
+) -> pd.DataFrame:
+    """
+    Main entry point: fetch all player data and return a DataFrame
+    compatible with the dynasty model's CSV format.
+    """
+    client = CFBDClient(api_key)
+    rows = []
+
+    print(f"\n🏈 Fetching data for {len(player_names)} players (draft year: {draft_year})\n")
+
+    for name in player_names:
+        print(f"→ {name}")
+        row = {"name": name}
+
+        # 1. Find player profile
+        profile = fetch_player_profile(client, name)
+        if not profile:
+            rows.append(row)
+            continue
+
+        player_id = profile.get("id")
+        position = profile.get("position", "").upper()
+        team = profile.get("team", "")
+
+        if position not in POSITIONS:
+            print(f"  ⚠️  Position '{position}' not tracked — skipping")
+            continue
+
+        row["position"] = position
+        row["college"] = team
+
+        # 2. Career stats
+        print(f"  📊 Fetching career stats ({position}, {team})…")
+        try:
+            all_stats = client.get_player_career_stats(player_id)
+            career = aggregate_career_stats(all_stats, position)
+            row.update(career)
+            row["seasons"] = career.get("seasons", 1)
+        except Exception as e:
+            print(f"  ⚠️  Stats error: {e}")
+
+        # 3. Team totals for most recent season
+        if team:
+            recent_year = draft_year - 1  # last college season
+            print(f"  🏟️  Fetching team totals ({team} {recent_year})…")
+            totals = fetch_team_totals(client, team, recent_year)
+            row.update(totals)
+
+        # 4. Draft + combine data
+        print(f"  🎯 Fetching draft/combine data ({draft_year})…")
+        draft = fetch_draft_info(client, name, draft_year)
+        row.update(draft)
+
+        # 5. Games estimate (if not in stats)
+        if "games" not in row or not row.get("games"):
+            row["games"] = career.get("seasons", 1) * 12  # rough estimate
+
+        rows.append(row)
+        print(f"  ✅ Done\n")
+
+    df = pd.DataFrame(rows)
+
+    # Ensure all required columns exist
+    required_cols = [
+        "name","position","college","draft_round","draft_pick",
+        "forty_time","height_inches","weight_lbs","vertical_inches",
+        "shuttle_seconds","three_cone","seasons","games","age_at_draft",
+        "completions","attempts","pass_yards","pass_tds","interceptions",
+        "years_as_starter","rush_yards_qb","qb_seasons",
+        "rec_yards","receptions","rec_tds","rush_yards","rush_attempts","rush_tds",
+        "targets","team_pass_yards","team_pass_attempts","team_rush_yards",
+        "team_total_tds","breakout_age"
+    ]
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = None
+
+    df = df[required_cols]
+    df.to_csv(output_csv, index=False)
+    print(f"\n💾 Saved to {output_csv} ({len(df)} players)")
+    return df
+
+
+# ── DRAFT CLASS FETCH ─────────────────────────────────────────────────────────
+
+def fetch_entire_draft_class(
+    draft_year: int,
+    api_key: str = CFBD_API_KEY,
+    positions: list = None,
+    output_csv: str = None,
+) -> pd.DataFrame:
+    """
+    Pull ALL skill position players from a given draft class.
+    Great for building a complete rookie ranking board.
+    """
+    client = CFBDClient(api_key)
+    positions = positions or list(POSITIONS)
+    output_csv = output_csv or f"draft_class_{draft_year}.csv"
+
+    print(f"\n🏈 Fetching entire {draft_year} draft class ({', '.join(positions)})…\n")
+
+    try:
+        picks = client.get_draft_picks(year=draft_year)
+    except Exception as e:
+        print(f"❌ Failed to fetch draft picks: {e}")
+        return pd.DataFrame()
+
+    # Filter to skill positions
+    skill_picks = [p for p in picks if p.get("position", "").upper() in positions]
+    print(f"Found {len(skill_picks)} skill position players in {draft_year} draft\n")
+
+    names = [p.get("name", "") for p in skill_picks if p.get("name")]
+    return fetch_players(names, draft_year, api_key, output_csv)
+
+
+# ── RUN MODEL AFTER FETCH ─────────────────────────────────────────────────────
+
+def fetch_and_rank(
+    player_names: list[str],
+    draft_year: int,
+    api_key: str = CFBD_API_KEY,
+) -> None:
+    """Fetch data and immediately run the dynasty model."""
+    from run_model import load_csv, build_excel, build_json_for_dashboard
+    from dynasty_model import rank_players, PlayerData
+    import sys, os
+    sys.path.insert(0, os.path.dirname(__file__))
+
+    csv_path = f"fetched_{draft_year}.csv"
+    df = fetch_players(player_names, draft_year, api_key, csv_path)
+
+    from run_model import load_csv
+    players = load_csv(csv_path)
+
+    from dynasty_model import rank_players
+    rankings = rank_players(players)
+
+    print("\n📊 DYNASTY RANKINGS")
+    print("=" * 65)
+    print(rankings[["Rank","Name","Position","Score","Tier","Dynasty Value"]].to_string(index=False))
+
+    build_excel(players, f"dynasty_rankings_{draft_year}.xlsx")
+    print(f"\n✅ Rankings exported to dynasty_rankings_{draft_year}.xlsx")
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Dynasty Scout — CFBD Auto-Fetcher")
+    parser.add_argument("--key", default=CFBD_API_KEY, help="Your CFBD API key")
+    parser.add_argument("--year", type=int, default=2025, help="Draft year")
+    parser.add_argument("--players", type=str, help="Comma-separated player names")
+    parser.add_argument("--file", type=str, help="Text file with one player name per line")
+    parser.add_argument("--draft-class", action="store_true", help="Fetch entire draft class")
+    parser.add_argument("--positions", default="QB,RB,WR,TE", help="Positions to include")
+    parser.add_argument("--output", default=None, help="Output CSV path")
+    parser.add_argument("--rank", action="store_true", help="Run dynasty model after fetching")
+    args = parser.parse_args()
+
+    api_key = args.key
+    if api_key == "YOUR_API_KEY_HERE":
+        print("❌ Please set your API key via --key or CFBD_API_KEY env variable")
+        sys.exit(1)
+
+    positions = [p.strip().upper() for p in args.positions.split(",")]
+
+    if args.draft_class:
+        output = args.output or f"draft_class_{args.year}.csv"
+        fetch_entire_draft_class(args.year, api_key, positions, output)
+
+    elif args.file:
+        with open(args.file) as f:
+            names = [l.strip() for l in f if l.strip()]
+        output = args.output or f"fetched_{args.year}.csv"
+        fetch_players(names, args.year, api_key, output)
+
+    elif args.players:
+        names = [n.strip() for n in args.players.split(",")]
+        output = args.output or f"fetched_{args.year}.csv"
+        if args.rank:
+            fetch_and_rank(names, args.year, api_key)
+        else:
+            fetch_players(names, args.year, api_key, output)
+
+    else:
+        parser.print_help()
