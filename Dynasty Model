@@ -1,5 +1,5 @@
 """
-Dynasty Fantasy Football College Player Evaluation Model
+Dynasty Fantasy Football College Player Evaluation Model 
 =========================================================
 Evaluates QB, RB, WR, TE prospects using college stats, combine data, and draft capital.
 """
