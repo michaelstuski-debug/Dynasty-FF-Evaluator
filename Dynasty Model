@@ -1,0 +1,464 @@
+"""
+Dynasty Fantasy Football College Player Evaluation Model
+=========================================================
+Evaluates QB, RB, WR, TE prospects using college stats, combine data, and draft capital.
+"""
+
+import pandas as pd
+import numpy as np
+import json
+from dataclasses import dataclass, field, asdict
+from typing import Optional
+
+
+# ─────────────────────────────────────────────
+# WEIGHT CONFIGS PER POSITION
+# ─────────────────────────────────────────────
+
+WEIGHTS = {
+    "QB": {
+        "draft_capital":        0.25,
+        "completion_pct":       0.10,
+        "yards_per_attempt":    0.12,
+        "td_int_ratio":         0.12,
+        "passer_rating":        0.10,
+        "years_as_starter":     0.08,
+        "rush_yards_per_season":0.08,
+        "age_at_draft":         0.15,
+    },
+    "RB": {
+        "draft_capital":        0.20,
+        "dominator_rating":     0.18,
+        "breakout_age":         0.12,
+        "yards_per_carry":      0.10,
+        "target_share":         0.08,
+        "receptions_per_game":  0.07,
+        "speed_score":          0.10,
+        "bmi":                  0.05,
+        "age_at_draft":         0.10,
+    },
+    "WR": {
+        "draft_capital":        0.22,
+        "dominator_rating":     0.18,
+        "breakout_age":         0.10,
+        "yptpa":                0.10,
+        "target_share":         0.10,
+        "yards_per_reception":  0.08,
+        "speed_score":          0.08,
+        "size_score":           0.04,
+        "age_at_draft":         0.10,
+    },
+    "TE": {
+        "draft_capital":        0.20,
+        "dominator_rating":     0.15,
+        "breakout_age":         0.10,
+        "target_share":         0.10,
+        "yptpa":                0.08,
+        "receptions_per_game":  0.08,
+        "height_adj_speed":     0.08,
+        "agility_score":        0.07,
+        "size_score":           0.05,
+        "age_at_draft":         0.09,
+    },
+}
+
+TIER_THRESHOLDS = [
+    (90, "Tier 1", "1st Round Rookie Pick"),
+    (75, "Tier 2", "Early 2nd Round"),
+    (60, "Tier 3", "Late 2nd / 3rd Round"),
+    (45, "Tier 4", "4th Round / Stash"),
+    (0,  "Tier 5", "Taxi Squad / Cut"),
+]
+
+
+# ─────────────────────────────────────────────
+# DATA STRUCTURE
+# ─────────────────────────────────────────────
+
+@dataclass
+class PlayerData:
+    # Identity
+    name: str
+    position: str  # QB, RB, WR, TE
+    college: str = ""
+
+    # Draft
+    draft_round: Optional[int] = None
+    draft_pick: Optional[int] = None
+
+    # Combine / Pro Day
+    forty_time: Optional[float] = None       # seconds
+    height_inches: Optional[float] = None    # inches (e.g. 73 = 6'1")
+    weight_lbs: Optional[float] = None       # lbs
+    vertical_inches: Optional[float] = None
+    shuttle_seconds: Optional[float] = None  # 20-yard shuttle
+    three_cone: Optional[float] = None       # seconds
+
+    # Shared college stats
+    seasons: int = 1
+    games: int = 0
+    age_at_draft: Optional[float] = None
+
+    # QB-specific
+    completions: int = 0
+    attempts: int = 0
+    pass_yards: int = 0
+    pass_tds: int = 0
+    interceptions: int = 0
+    years_as_starter: int = 0
+    rush_yards_qb: int = 0       # career rushing yards
+    qb_seasons: int = 1          # number of seasons for per-season calc
+
+    # Skill position (RB/WR/TE)
+    rec_yards: int = 0
+    receptions: int = 0
+    rec_tds: int = 0
+    rush_yards: int = 0          # RB rushing
+    rush_attempts: int = 0
+    rush_tds: int = 0
+    targets: int = 0
+
+    # Team totals (for dominator / target share)
+    team_pass_yards: int = 0
+    team_pass_attempts: int = 0
+    team_rush_yards: int = 0
+    team_total_tds: int = 0
+
+    # Breakout age (user-supplied or auto-tagged)
+    breakout_age: Optional[float] = None
+
+
+# ─────────────────────────────────────────────
+# METRIC CALCULATORS
+# ─────────────────────────────────────────────
+
+def draft_capital_score(rd: Optional[int], pick: Optional[int]) -> float:
+    """Higher pick → higher score (0–100)."""
+    if rd is None or pick is None:
+        return 30.0  # UDFA / unknown penalty
+    overall = (rd - 1) * 32 + pick
+    # Top pick = 100, pick 256 = 5
+    score = max(5, 100 - (overall - 1) * (95 / 255))
+    return round(score, 2)
+
+
+def completion_pct(completions: int, attempts: int) -> float:
+    if attempts == 0:
+        return 0.0
+    return round(completions / attempts * 100, 2)
+
+
+def yards_per_attempt(pass_yards: int, attempts: int) -> float:
+    if attempts == 0:
+        return 0.0
+    return round(pass_yards / attempts, 2)
+
+
+def td_int_ratio(tds: int, ints: int) -> float:
+    if ints == 0:
+        return min(tds * 2.0, 10.0)  # cap when no picks
+    return round(tds / ints, 2)
+
+
+def passer_rating_ncaa(comp: int, att: int, yards: int, tds: int, ints: int) -> float:
+    """NCAA passer efficiency formula (0–200+, normalize later)."""
+    if att == 0:
+        return 100.0
+    a = (comp / att) * 100
+    b = (yards / att)
+    c = (tds / att) * 100
+    d = (ints / att) * 100
+    rating = 8.4 * b + 0.3 * a + 3.3 * c - 2.0 * d
+    return round(max(0, rating), 2)
+
+
+def dominator_rating(rec_yards: int, rush_yards: int, rec_tds: int, rush_tds: int,
+                     team_pass_yards: int, team_rush_yards: int, team_tds: int,
+                     position: str) -> float:
+    """Percentage of team yards + TD share. 0–100."""
+    player_yards = rec_yards + (rush_yards if position == "RB" else 0)
+    team_yards = team_pass_yards + (team_rush_yards if position == "RB" else 0)
+    player_tds = rec_tds + (rush_tds if position == "RB" else 0)
+
+    yard_share = (player_yards / team_yards * 100) if team_yards else 0
+    td_share = (player_tds / team_tds * 100) if team_tds else 0
+    return round((yard_share + td_share) / 2, 2)
+
+
+def speed_score(weight: float, forty: float) -> float:
+    """Bill Barnwell speed score: (weight * 200) / (forty^4)."""
+    if forty <= 0:
+        return 50.0
+    return round((weight * 200) / (forty ** 4), 2)
+
+
+def height_adjusted_speed_score(weight: float, forty: float, height: float) -> float:
+    """Modified for TEs: penalizes shorter players less."""
+    base = speed_score(weight, forty)
+    # height modifier: average TE ~76 inches
+    height_factor = 1 + (height - 76) * 0.005
+    return round(base * height_factor, 2)
+
+
+def bmi(weight: float, height: float) -> float:
+    """Standard BMI using imperial: (weight / height²) * 703."""
+    if height <= 0:
+        return 25.0
+    return round((weight / (height ** 2)) * 703, 2)
+
+
+def size_score(height: float, weight: float, position: str) -> float:
+    """Composite size score vs position ideals (0–100)."""
+    ideals = {
+        "WR": (73.5, 205),   # 6'1.5", 205 lbs
+        "TE": (77.0, 248),   # 6'5", 248 lbs
+    }
+    ideal_h, ideal_w = ideals.get(position, (74, 220))
+    h_score = max(0, 100 - abs(height - ideal_h) * 6)
+    w_score = max(0, 100 - abs(weight - ideal_w) * 0.8)
+    return round((h_score + w_score) / 2, 2)
+
+
+def agility_score(shuttle: Optional[float], three_cone: Optional[float]) -> float:
+    """Lower times = better. Scale to 0–100."""
+    scores = []
+    if shuttle:
+        scores.append(max(0, 100 - (shuttle - 3.8) * 80))
+    if three_cone:
+        scores.append(max(0, 100 - (three_cone - 6.5) * 50))
+    return round(np.mean(scores), 2) if scores else 50.0
+
+
+def yptpa(rec_yards: int, team_pass_attempts: int) -> float:
+    if team_pass_attempts == 0:
+        return 0.0
+    return round(rec_yards / team_pass_attempts, 3)
+
+
+def target_share(targets: int, team_pass_attempts: int) -> float:
+    if team_pass_attempts == 0:
+        return 0.0
+    return round(targets / team_pass_attempts * 100, 2)
+
+
+def yards_per_carry(rush_yards: int, attempts: int) -> float:
+    if attempts == 0:
+        return 0.0
+    return round(rush_yards / attempts, 2)
+
+
+def receptions_per_game(receptions: int, games: int) -> float:
+    if games == 0:
+        return 0.0
+    return round(receptions / games, 2)
+
+
+def age_score(age: Optional[float], position: str) -> float:
+    """Younger → higher score. Ideal ages by position."""
+    ideal = {"QB": 22.5, "RB": 21.5, "WR": 21.5, "TE": 22.0}.get(position, 22)
+    if age is None:
+        return 50.0
+    penalty = max(0, age - ideal) * 8
+    return round(max(0, 100 - penalty), 2)
+
+
+def breakout_age_score(breakout_age: Optional[float], position: str) -> float:
+    """Earlier breakout → higher score."""
+    thresholds = {"QB": 20, "RB": 20, "WR": 20, "TE": 21}
+    ideal = thresholds.get(position, 20)
+    if breakout_age is None:
+        return 40.0
+    penalty = max(0, breakout_age - ideal) * 12
+    return round(max(0, 100 - penalty), 2)
+
+
+def years_starter_score(years: int) -> float:
+    """3+ years ideal for QBs."""
+    return min(100, years * 28)
+
+
+def rush_yards_per_season_score(rush_yards: int, seasons: int) -> float:
+    if seasons == 0:
+        return 0.0
+    avg = rush_yards / seasons
+    return min(100, avg / 5)  # 500 ypg = 100
+
+
+# ─────────────────────────────────────────────
+# NORMALIZER
+# ─────────────────────────────────────────────
+
+def normalize(value: float, low: float, high: float) -> float:
+    """Clamp and scale value to 0–100."""
+    if high == low:
+        return 50.0
+    scaled = (value - low) / (high - low) * 100
+    return round(max(0, min(100, scaled)), 2)
+
+
+# Range definitions for raw metric normalization
+NORM_RANGES = {
+    "completion_pct":       (50, 75),
+    "yards_per_attempt":    (5, 11),
+    "td_int_ratio":         (0.5, 5),
+    "passer_rating":        (100, 180),
+    "dominator_rating":     (8, 40),
+    "speed_score":          (80, 130),
+    "bmi":                  (22, 32),
+    "yptpa":                (0.2, 1.5),
+    "target_share":         (8, 35),
+    "yards_per_reception":  (8, 18),
+    "yards_per_carry":      (3.5, 7),
+    "receptions_per_game":  (1, 7),
+}
+
+
+def normalize_metric(key: str, value: float) -> float:
+    if key in NORM_RANGES:
+        lo, hi = NORM_RANGES[key]
+        return normalize(value, lo, hi)
+    return max(0, min(100, value))  # already 0–100
+
+
+# ─────────────────────────────────────────────
+# POSITION EVALUATORS
+# ─────────────────────────────────────────────
+
+def evaluate_qb(p: PlayerData) -> dict:
+    raw = {
+        "draft_capital":         draft_capital_score(p.draft_round, p.draft_pick),
+        "completion_pct":        completion_pct(p.completions, p.attempts),
+        "yards_per_attempt":     yards_per_attempt(p.pass_yards, p.attempts),
+        "td_int_ratio":          td_int_ratio(p.pass_tds, p.interceptions),
+        "passer_rating":         passer_rating_ncaa(p.completions, p.attempts, p.pass_yards, p.pass_tds, p.interceptions),
+        "years_as_starter":      years_starter_score(p.years_as_starter),
+        "rush_yards_per_season": rush_yards_per_season_score(p.rush_yards_qb, p.qb_seasons),
+        "age_at_draft":          age_score(p.age_at_draft, "QB"),
+    }
+    normalized = {k: normalize_metric(k, v) for k, v in raw.items()}
+    return raw, normalized
+
+
+def evaluate_rb(p: PlayerData) -> dict:
+    dom = dominator_rating(p.rec_yards, p.rush_yards, p.rec_tds, p.rush_tds,
+                           p.team_pass_yards, p.team_rush_yards, p.team_total_tds, "RB")
+    ss = speed_score(p.weight_lbs or 215, p.forty_time or 4.5) if p.forty_time else 95.0
+    bmi_val = bmi(p.weight_lbs or 215, p.height_inches or 70) if p.weight_lbs else 27.0
+    raw = {
+        "draft_capital":       draft_capital_score(p.draft_round, p.draft_pick),
+        "dominator_rating":    dom,
+        "breakout_age":        breakout_age_score(p.breakout_age, "RB"),
+        "yards_per_carry":     yards_per_carry(p.rush_yards, p.rush_attempts),
+        "target_share":        target_share(p.targets, p.team_pass_attempts),
+        "receptions_per_game": receptions_per_game(p.receptions, p.games),
+        "speed_score":         ss,
+        "bmi":                 bmi_val,
+        "age_at_draft":        age_score(p.age_at_draft, "RB"),
+    }
+    normalized = {k: normalize_metric(k, v) for k, v in raw.items()}
+    # Invert BMI for RB (lighter/faster preferred at extremes)
+    normalized["bmi"] = normalize(bmi_val, 25, 32)
+    return raw, normalized
+
+
+def evaluate_wr(p: PlayerData) -> dict:
+    dom = dominator_rating(p.rec_yards, 0, p.rec_tds, 0,
+                           p.team_pass_yards, p.team_rush_yards, p.team_total_tds, "WR")
+    ss = speed_score(p.weight_lbs or 200, p.forty_time or 4.45) if p.forty_time else 100.0
+    sz = size_score(p.height_inches or 73, p.weight_lbs or 200, "WR")
+    ypr = (p.rec_yards / p.receptions) if p.receptions else 12.0
+    raw = {
+        "draft_capital":        draft_capital_score(p.draft_round, p.draft_pick),
+        "dominator_rating":     dom,
+        "breakout_age":         breakout_age_score(p.breakout_age, "WR"),
+        "yptpa":                yptpa(p.rec_yards, p.team_pass_attempts),
+        "target_share":         target_share(p.targets, p.team_pass_attempts),
+        "yards_per_reception":  ypr,
+        "speed_score":          ss,
+        "size_score":           sz,
+        "age_at_draft":         age_score(p.age_at_draft, "WR"),
+    }
+    normalized = {k: normalize_metric(k, v) for k, v in raw.items()}
+    return raw, normalized
+
+
+def evaluate_te(p: PlayerData) -> dict:
+    dom = dominator_rating(p.rec_yards, 0, p.rec_tds, 0,
+                           p.team_pass_yards, p.team_rush_yards, p.team_total_tds, "TE")
+    has = (height_adjusted_speed_score(p.weight_lbs or 245, p.forty_time, p.height_inches or 76)
+           if p.forty_time else 90.0)
+    ag = agility_score(p.shuttle_seconds, p.three_cone)
+    sz = size_score(p.height_inches or 76, p.weight_lbs or 245, "TE")
+    raw = {
+        "draft_capital":       draft_capital_score(p.draft_round, p.draft_pick),
+        "dominator_rating":    dom,
+        "breakout_age":        breakout_age_score(p.breakout_age, "TE"),
+        "target_share":        target_share(p.targets, p.team_pass_attempts),
+        "yptpa":               yptpa(p.rec_yards, p.team_pass_attempts),
+        "receptions_per_game": receptions_per_game(p.receptions, p.games),
+        "height_adj_speed":    has,
+        "agility_score":       ag,
+        "size_score":          sz,
+        "age_at_draft":        age_score(p.age_at_draft, "TE"),
+    }
+    normalized = {k: normalize_metric(k, v) for k, v in raw.items()}
+    # height_adj_speed and agility already 0–100
+    return raw, normalized
+
+
+# ─────────────────────────────────────────────
+# MAIN SCORER
+# ─────────────────────────────────────────────
+
+def score_player(p: PlayerData) -> dict:
+    pos = p.position.upper()
+    evaluators = {"QB": evaluate_qb, "RB": evaluate_rb, "WR": evaluate_wr, "TE": evaluate_te}
+    if pos not in evaluators:
+        raise ValueError(f"Unknown position: {pos}")
+
+    raw, normalized = evaluators[pos](p)
+    weights = WEIGHTS[pos]
+
+    # Weighted sum
+    total = sum(normalized[k] * weights[k] for k in weights if k in normalized)
+
+    # Tier and dynasty value
+    tier, value = "Tier 5", "Taxi Squad / Cut"
+    for threshold, t, v in TIER_THRESHOLDS:
+        if total >= threshold:
+            tier, value = t, v
+            break
+
+    return {
+        "name": p.name,
+        "position": pos,
+        "college": p.college,
+        "total_score": round(total, 2),
+        "tier": tier,
+        "dynasty_value": value,
+        "raw_metrics": raw,
+        "normalized_metrics": normalized,
+        "weights": weights,
+    }
+
+
+def rank_players(players: list[PlayerData]) -> pd.DataFrame:
+    results = [score_player(p) for p in players]
+    df = pd.DataFrame([{
+        "Rank": 0,
+        "Name": r["name"],
+        "Position": r["position"],
+        "College": r["college"],
+        "Score": r["total_score"],
+        "Tier": r["tier"],
+        "Dynasty Value": r["dynasty_value"],
+        **{k: round(v, 1) for k, v in r["normalized_metrics"].items()},
+    } for r in results])
+
+    df = df.sort_values("Score", ascending=False).reset_index(drop=True)
+    df["Rank"] = df.index + 1
+    return df
+
+
+def to_json(players: list[PlayerData]) -> str:
+    return json.dumps([score_player(p) for p in players], indent=2)
