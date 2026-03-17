@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Model — One Model to Rule Them All</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:        #080D14;
+    --surface:   #0F1923;
+    --card:      #151F2E;
+    --border:    #1E2D40;
+    --accent:    #00D4FF;
+    --accent2:   #FF6B35;
+    --gold:      #FFD700;
+    --green:     #00E676;
+    --red:       #FF3D57;
+    --muted:     #4A6070;
+    --text:      #C8D8E8;
+    --bright:    #EAF4FF;
+
+    --t1: #00E676; --t1bg: rgba(0,230,118,0.12);
+    --t2: #00D4FF; --t2bg: rgba(0,212,255,0.12);
+    --t3: #FFD700; --t3bg: rgba(255,215,0,0.10);
+    --t4: #FF9800; --t4bg: rgba(255,152,0,0.10);
+    --t5: #FF3D57; --t5bg: rgba(255,61,87,0.10);
+
+    --qb: #4FC3F7; --rb: #69F0AE; --wr: #FFD740; --te: #FF7043;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #080D14 0%, #0D1B2A 50%, #080D14 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .logo {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 32px; letter-spacing: 3px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .logo span { color: var(--text); -webkit-text-fill-color: var(--text); font-size: 12px;
+    font-family: 'DM Mono', monospace; letter-spacing: 2px; display: block; opacity: 0.5; }
+  .header-stats { display: flex; gap: 24px; }
+  .hstat { text-align: center; }
+  .hstat-val { font-family: 'Bebas Neue', cursive; font-size: 22px; color: var(--accent); }
+  .hstat-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+  /* ── LAYOUT ── */
+  .main { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 77px); }
+
+  /* ── SIDEBAR ── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  .sidebar-section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--muted); padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 8px; }
+  .filter-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text); padding: 8px 14px; border-radius: 6px;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    transition: all .2s; text-align: left; display: flex; align-items: center; gap: 10px;
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { background: rgba(0,212,255,0.12); border-color: var(--accent); color: var(--accent); }
+  .pos-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .pos-dot.all { background: var(--accent); }
+  .pos-dot.QB { background: var(--qb); }
+  .pos-dot.RB { background: var(--rb); }
+  .pos-dot.WR { background: var(--wr); }
+  .pos-dot.TE { background: var(--te); }
+
+  .tier-btn { gap: 8px; justify-content: space-between; }
+  .tier-badge-sm { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: 'DM Mono', monospace; }
+
+  .score-range { display: flex; flex-direction: column; gap: 8px; }
+  .range-row { display: flex; justify-content: space-between; align-items: center; }
+  .range-label { font-size: 11px; color: var(--muted); }
+  .range-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px;
+    background: var(--border); border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+
+  /* ── MAIN CONTENT ── */
+  .content { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* ── TABS ── */
+  .tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+  .tab {
+    background: none; border: none; padding: 10px 20px; cursor: pointer;
+    color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── RANKINGS TABLE ── */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface); padding: 10px 14px;
+    text-align: left; font-size: 10px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted);
+    font-family: 'DM Mono', monospace; white-space: nowrap;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+    user-select: none; transition: color .2s;
+  }
+  th:hover { color: var(--accent); }
+  th .sort-icon { opacity: 0.3; margin-left: 4px; }
+  th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(30,45,64,0.5); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr { transition: background .15s; cursor: pointer; }
+  tr:hover td { background: rgba(0,212,255,0.04); }
+  tr.selected td { background: rgba(0,212,255,0.08); }
+
+  .rank-num { font-family: 'Bebas Neue', cursive; font-size: 20px; color: var(--muted); width: 36px; }
+  .rank-num.top3 { color: var(--gold); }
+  .player-name { font-weight: 600; color: var(--bright); font-size: 14px; }
+  .player-college { font-size: 11px; color: var(--muted); }
+
+  .pos-badge {
+    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  }
+  .pos-badge.QB { background: rgba(79,195,247,0.15); color: var(--qb); }
+  .pos-badge.RB { background: rgba(105,240,174,0.15); color: var(--rb); }
+  .pos-badge.WR { background: rgba(255,215,64,0.15); color: var(--wr); }
+  .pos-badge.TE { background: rgba(255,112,67,0.15); color: var(--te); }
+
+  .tier-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500;
+    white-space: nowrap;
+  }
+  .tier-badge.Tier-1 { background: var(--t1bg); color: var(--t1); }
+  .tier-badge.Tier-2 { background: var(--t2bg); color: var(--t2); }
+  .tier-badge.Tier-3 { background: var(--t3bg); color: var(--t3); }
+  .tier-badge.Tier-4 { background: var(--t4bg); color: var(--t4); }
+  .tier-badge.Tier-5 { background: var(--t5bg); color: var(--t5); }
+
+  .score-cell { display: flex; align-items: center; gap: 8px; }
+  .score-num { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; min-width: 36px; }
+  .score-bar-bg { width: 80px; height: 5px; background: var(--border); border-radius: 3px; }
+  .score-bar { height: 100%; border-radius: 3px; }
+
+  .dynasty-val { font-size: 11px; color: var(--muted); max-width: 150px; }
+
+  /* ── PLAYER DETAIL PANEL ── */
+  .detail-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px;
+    display: none; flex-direction: column; gap: 24px;
+  }
+  .detail-panel.visible { display: flex; }
+
+  .detail-header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .detail-name { font-family: 'Bebas Neue', cursive; font-size: 36px; color: var(--bright); letter-spacing: 2px; }
+  .detail-sub { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .detail-college { font-size: 13px; color: var(--muted); }
+  .close-btn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+  }
+  .close-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .detail-score-row { display: flex; align-items: center; gap: 20px; }
+  .detail-score-circle {
+    width: 80px; height: 80px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', cursive; font-size: 28px;
+    border: 3px solid; position: relative;
+  }
+  .detail-score-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; margin-top: -2px; }
+  .detail-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; flex: 1; }
+  .detail-info-box { background: var(--surface); border-radius: 8px; padding: 12px; }
+  .detail-info-val { font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 500; }
+  .detail-info-key { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── RADAR CHART ── */
+  .radar-section { display: grid; grid-template-columns: 240px 1fr; gap: 24px; align-items: start; }
+  canvas#radarChart { width: 240px !important; height: 240px !important; }
+
+  .metric-bars { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .metric-row { display: flex; flex-direction: column; gap: 4px; }
+  .metric-header { display: flex; justify-content: space-between; align-items: center; }
+  .metric-name { font-size: 11px; color: var(--text); text-transform: capitalize; }
+  .metric-score-txt { font-family: 'DM Mono', monospace; font-size: 11px; }
+  .metric-bar-bg { height: 6px; background: var(--border); border-radius: 3px; }
+  .metric-bar-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+  .metric-weight { font-size: 9px; color: var(--muted); }
+
+  /* ── OVERVIEW ── */
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .overview-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px; cursor: pointer; transition: all .2s; position: relative; overflow: hidden;
+  }
+  .overview-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .overview-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .overview-card.QB::before { background: var(--qb); }
+  .overview-card.RB::before { background: var(--rb); }
+  .overview-card.WR::before { background: var(--wr); }
+  .overview-card.TE::before { background: var(--te); }
+
+  .oc-rank { font-family: 'Bebas Neue', cursive; font-size: 13px; color: var(--muted); }
+  .oc-name { font-weight: 600; color: var(--bright); font-size: 15px; margin: 4px 0; }
+  .oc-score { font-family: 'Bebas Neue', cursive; font-size: 32px; line-height: 1; }
+  .oc-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .oc-tier { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-family: 'DM Mono', monospace; }
+  .oc-college { font-size: 10px; color: var(--muted); }
+
+  /* ── DISTRIBUTION CHART ── */
+  .dist-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dist-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .dist-title { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  canvas { max-width: 100%; }
+
+  /* ── EMPTY STATE ── */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+
+  /* ── SEARCH ── */
+  .search-row { display: flex; gap: 12px; align-items: center; }
+  .search-box {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 14px; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none;
+    transition: border-color .2s;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--muted); }
+  .count-badge { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* ── COMPARISON ── */
+  .compare-section { display: none; }
+  .compare-section.visible { display: flex; flex-direction: column; gap: 16px; }
+  .compare-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  select {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; outline: none; width: 100%; cursor: pointer;
+  }
+  select:focus { border-color: var(--accent); }
+  .compare-bars { display: flex; flex-direction: column; gap: 10px; }
+  .cmp-row { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 8px; align-items: center; }
+  .cmp-label { font-size: 11px; color: var(--muted); text-align: center; text-transform: capitalize; }
+  .cmp-bar-row { display: flex; align-items: center; gap: 6px; }
+  .cmp-bar-a { flex: 1; height: 8px; background: rgba(0,212,255,0.2); border-radius: 4px; overflow: hidden; justify-content: flex-end; display: flex; }
+  .cmp-bar-b { flex: 1; height: 8px; background: rgba(255,107,53,0.2); border-radius: 4px; overflow: hidden; }
+  .cmp-fill-a { height: 100%; background: var(--accent); border-radius: 4px; }
+  .cmp-fill-b { height: 100%; background: var(--accent2); border-radius: 4px; }
+  .cmp-val { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); width: 28px; text-align: center; }
+  .cmp-header { display: grid; grid-template-columns: 1fr 60px 1fr; gap: 8px; }
+  .cmp-head { font-family: 'Bebas Neue', cursive; font-size: 18px; text-align: center; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">The Model</div>
+    <span class="logo"><span>ONE MODEL TO RULE THEM ALL</span></span>
+  </div>
+  <div class="header-stats">
+    <div class="hstat"><div class="hstat-val" id="hs-total">0</div><div class="hstat-label">Players</div></div>
+    <div class="hstat"><div class="hstat-val" id="hs-t1">0</div><div class="hstat-label">Tier 1</div></div>
+    <div class="hstat"><div class="hstat-val" id="hs-avg">—</div><div class="hstat-label">Avg Score</div></div>
+    <div class="hstat"><div class="hstat-val" id="hs-top">—</div><div class="hstat-label">Top Prospect</div></div>
+  </div>
+</header>
+
+<div class="main">
+  <aside>
+    <div>
+      <div class="sidebar-section-title">Position</div>
+      <div class="filter-group" style="margin-top:10px">
+        <button class="filter-btn active" onclick="filterPos('ALL')">
+          <span class="pos-dot all"></span> All Positions
+        </button>
+        <button class="filter-btn" onclick="filterPos('QB')"><span class="pos-dot QB"></span> Quarterbacks</button>
+        <button class="filter-btn" onclick="filterPos('RB')"><span class="pos-dot RB"></span> Running Backs</button>
+        <button class="filter-btn" onclick="filterPos('WR')"><span class="pos-dot WR"></span> Wide Receivers</button>
+        <button class="filter-btn" onclick="filterPos('TE')"><span class="pos-dot TE"></span> Tight Ends</button>
+      </div>
+    </div>
+    <div>
+      <div class="sidebar-section-title">Tier</div>
+      <div class="filter-group" style="margin-top:10px">
+        <button class="filter-btn tier-btn active" onclick="filterTier('ALL')">All Tiers</button>
+        <button class="filter-btn tier-btn" onclick="filterTier('Tier 1')">
+          <span>Tier 1</span><span class="tier-badge-sm" style="background:var(--t1bg);color:var(--t1)">90+</span>
+        </button>
+        <button class="filter-btn tier-btn" onclick="filterTier('Tier 2')">
+          <span>Tier 2</span><span class="tier-badge-sm" style="background:var(--t2bg);color:var(--t2)">75–89</span>
+        </button>
+        <button class="filter-btn tier-btn" onclick="filterTier('Tier 3')">
+          <span>Tier 3</span><span class="tier-badge-sm" style="background:var(--t3bg);color:var(--t3)">60–74</span>
+        </button>
+        <button class="filter-btn tier-btn" onclick="filterTier('Tier 4')">
+          <span>Tier 4</span><span class="tier-badge-sm" style="background:var(--t4bg);color:var(--t4)">45–59</span>
+        </button>
+        <button class="filter-btn tier-btn" onclick="filterTier('Tier 5')">
+          <span>Tier 5</span><span class="tier-badge-sm" style="background:var(--t5bg);color:var(--t5)">&lt;45</span>
+        </button>
+      </div>
+    </div>
+    <div>
+      <div class="sidebar-section-title">Min Score</div>
+      <div class="score-range" style="margin-top:10px">
+        <div class="range-row">
+          <span class="range-label">Threshold</span>
+          <span class="range-val" id="scoreVal">0</span>
+        </div>
+        <input type="range" id="scoreFilter" min="0" max="100" value="0"
+          oninput="document.getElementById('scoreVal').textContent=this.value; applyFilters()">
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+    <div class="tab-bar">
+      <button class="tab active" onclick="showTab('rankings')">📊 Rankings</button>
+      <button class="tab" onclick="showTab('cards')">🃏 Card View</button>
+      <button class="tab" onclick="showTab('compare')">⚖️ Compare</button>
+      <button class="tab" onclick="showTab('metrics')">📈 Distributions</button>
+    </div>
+
+    <!-- RANKINGS TAB -->
+    <div id="tab-rankings">
+      <div class="search-row">
+        <input type="text" class="search-box" placeholder="Search player or college…" id="searchInput"
+          oninput="applyFilters()">
+        <span class="count-badge" id="countBadge">20 players</span>
+      </div>
+
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+          <div>
+            <div class="detail-name" id="dp-name"></div>
+            <div class="detail-sub">
+              <span class="pos-badge" id="dp-pos"></span>
+              <span class="detail-college" id="dp-college"></span>
+            </div>
+          </div>
+          <button class="close-btn" onclick="closeDetail()">✕</button>
+        </div>
+        <div class="detail-score-row">
+          <div class="detail-score-circle" id="dp-circle">
+            <span id="dp-score-num"></span>
+            <span class="detail-score-label">Score</span>
+          </div>
+          <div class="detail-info-grid" id="dp-info-grid"></div>
+        </div>
+        <div class="radar-section">
+          <canvas id="radarChart"></canvas>
+          <div class="metric-bars" id="dp-metric-bars"></div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="rankTable">
+          <thead>
+            <tr>
+              <th onclick="sortBy('rank')"># <span class="sort-icon">↕</span></th>
+              <th onclick="sortBy('name')">Player <span class="sort-icon">↕</span></th>
+              <th onclick="sortBy('position')">Pos <span class="sort-icon">↕</span></th>
+              <th onclick="sortBy('total_score')">Score <span class="sort-icon">↕</span></th>
+              <th>Tier</th>
+              <th>Dynasty Value</th>
+            </tr>
+          </thead>
+          <tbody id="rankBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CARDS TAB -->
+    <div id="tab-cards" style="display:none">
+      <div class="overview-grid" id="cardsGrid"></div>
+    </div>
+
+    <!-- COMPARE TAB -->
+    <div id="tab-compare" class="compare-section" style="display:none">
+      <div class="compare-selects">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-family:'DM Mono',monospace">PLAYER A</div>
+          <select id="cmpA" onchange="renderCompare()"></select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-family:'DM Mono',monospace">PLAYER B</div>
+          <select id="cmpB" onchange="renderCompare()"></select>
+        </div>
+      </div>
+      <div id="cmpContent"></div>
+    </div>
+
+    <!-- DISTRIBUTIONS TAB -->
+    <div id="tab-metrics" style="display:none">
+      <div class="dist-section">
+        <div class="dist-card">
+          <div class="dist-title">Score Distribution by Position</div>
+          <canvas id="distChart" height="260"></canvas>
+        </div>
+        <div class="dist-card">
+          <div class="dist-title">Draft Capital vs. Overall Score</div>
+          <canvas id="scatterChart" height="260"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const PLAYERS = [{"name":"Malik Nabers","position":"WR","college":"LSU","total_score":95.7,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":98.14,"dominator_rating":52.64,"breakout_age":100.0,"yptpa":4.896,"target_share":41.79,"yards_per_reception":16.129411764705882,"speed_score":115.92,"size_score":96.5,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":98.14,"dominator_rating":100.0,"breakout_age":100.0,"yptpa":100.0,"target_share":100.0,"yards_per_reception":81.29,"speed_score":71.84,"size_score":96.5,"age_at_draft":100.0},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":1},{"name":"Rome Odunze","position":"WR","college":"Washington","total_score":94.25,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":97.02,"dominator_rating":43.61,"breakout_age":95.2,"yptpa":4.432,"target_share":34.19,"yards_per_reception":17.28301886792453,"speed_score":109.14,"size_score":91.9,"age_at_draft":99.2},"normalized_metrics":{"draft_capital":97.02,"dominator_rating":100.0,"breakout_age":95.2,"yptpa":100.0,"target_share":97.0,"yards_per_reception":92.83,"speed_score":58.28,"size_score":91.9,"age_at_draft":99.2},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":2},{"name":"Brock Bowers","position":"TE","college":"Georgia","total_score":93.42,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":95.53,"dominator_rating":49.52,"breakout_age":100.0,"target_share":45.71,"yptpa":5.002,"receptions_per_game":4.61,"height_adj_speed":113.18,"agility_score":71.55,"size_score":89.8,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":95.53,"dominator_rating":100.0,"breakout_age":100.0,"target_share":100.0,"yptpa":100.0,"receptions_per_game":60.17,"height_adj_speed":100.0,"agility_score":71.55,"size_score":89.8,"age_at_draft":100.0},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":3},{"name":"Brian Thomas Jr","position":"WR","college":"LSU","total_score":93.16,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":91.8,"dominator_rating":44.92,"breakout_age":94.0,"yptpa":3.875,"target_share":30.0,"yards_per_reception":17.78688524590164,"speed_score":118.91,"size_score":93.9,"age_at_draft":96.0},"normalized_metrics":{"draft_capital":91.8,"dominator_rating":100.0,"breakout_age":94.0,"yptpa":100.0,"target_share":81.48,"yards_per_reception":97.87,"speed_score":77.82,"size_score":93.9,"age_at_draft":96.0},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":4},{"name":"Xavier Worthy","position":"WR","college":"Texas","total_score":89.79,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":89.94,"dominator_rating":42.98,"breakout_age":97.6,"yptpa":3.864,"target_share":35.82,"yards_per_reception":15.070921985815604,"speed_score":105.05,"size_score":70.5,"age_at_draft":97.6},"normalized_metrics":{"draft_capital":89.94,"dominator_rating":100.0,"breakout_age":97.6,"yptpa":100.0,"target_share":100.0,"yards_per_reception":70.71,"speed_score":50.1,"size_score":70.5,"age_at_draft":97.6},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":5},{"name":"Ladd McConkey","position":"WR","college":"Georgia","total_score":83.72,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":75.78,"dominator_rating":38.0,"breakout_age":90.4,"yptpa":3.798,"target_share":37.69,"yards_per_reception":14.31159420289855,"speed_score":99.62,"size_score":87.5,"age_at_draft":94.4},"normalized_metrics":{"draft_capital":75.78,"dominator_rating":93.75,"breakout_age":90.4,"yptpa":100.0,"target_share":100.0,"yards_per_reception":63.12,"speed_score":39.24,"size_score":87.5,"age_at_draft":94.4},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":6},{"name":"Caleb Williams","position":"QB","college":"USC","total_score":82.25,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":100.0,"completion_pct":69.59,"yards_per_attempt":10.34,"td_int_ratio":3.58,"passer_rating":131.83,"years_as_starter":84.0,"rush_yards_per_season":60.27,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":100.0,"completion_pct":78.36,"yards_per_attempt":89.0,"td_int_ratio":68.44,"passer_rating":39.79,"years_as_starter":84.0,"rush_yards_per_season":60.27,"age_at_draft":100.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":7},{"name":"Jayden Daniels","position":"QB","college":"LSU","total_score":79.91,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":99.63,"completion_pct":69.28,"yards_per_attempt":7.78,"td_int_ratio":5.5,"passer_rating":102.05,"years_as_starter":100.0,"rush_yards_per_season":89.96,"age_at_draft":95.2},"normalized_metrics":{"draft_capital":99.63,"completion_pct":77.12,"yards_per_attempt":46.33,"td_int_ratio":100.0,"passer_rating":2.56,"years_as_starter":100.0,"rush_yards_per_season":89.96,"age_at_draft":95.2},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":8},{"name":"Jonathon Brooks","position":"RB","college":"Texas","total_score":79.48,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":71.31,"dominator_rating":37.66,"breakout_age":94.0,"yards_per_carry":5.96,"target_share":37.14,"receptions_per_game":3.94,"speed_score":109.05,"bmi":29.29,"age_at_draft":99.2},"normalized_metrics":{"draft_capital":71.31,"dominator_rating":92.69,"breakout_age":94.0,"yards_per_carry":70.29,"target_share":100.0,"receptions_per_game":49.0,"speed_score":58.1,"bmi":61.29,"age_at_draft":99.2},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":9},{"name":"Ben Sinnott","position":"TE","college":"Kansas State","total_score":78.69,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":65.73,"dominator_rating":33.07,"breakout_age":97.6,"target_share":29.78,"yptpa":3.138,"receptions_per_game":2.64,"height_adj_speed":98.26,"agility_score":62.3,"size_score":97.0,"age_at_draft":96.8},"normalized_metrics":{"draft_capital":65.73,"dominator_rating":78.34,"breakout_age":97.6,"target_share":80.67,"yptpa":100.0,"receptions_per_game":27.33,"height_adj_speed":98.26,"agility_score":62.3,"size_score":97.0,"age_at_draft":96.8},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":10},{"name":"Drake Maye","position":"QB","college":"North Carolina","total_score":73.78,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":99.25,"completion_pct":67.57,"yards_per_attempt":7.93,"td_int_ratio":4.5,"passer_rating":107.21,"years_as_starter":84.0,"rush_yards_per_season":34.93,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":99.25,"completion_pct":70.28,"yards_per_attempt":48.83,"td_int_ratio":88.89,"passer_rating":9.01,"years_as_starter":84.0,"rush_yards_per_season":34.93,"age_at_draft":100.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":11},{"name":"JJ McCarthy","position":"QB","college":"Michigan","total_score":73.19,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":96.65,"completion_pct":67.99,"yards_per_attempt":8.02,"td_int_ratio":6.55,"passer_rating":109.63,"years_as_starter":84.0,"rush_yards_per_season":10.8,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":96.65,"completion_pct":71.96,"yards_per_attempt":50.33,"td_int_ratio":100.0,"passer_rating":12.04,"years_as_starter":84.0,"rush_yards_per_season":10.8,"age_at_draft":100.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":12},{"name":"Ja'Tavion Sanders","position":"TE","college":"Texas","total_score":72.54,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":45.98,"dominator_rating":32.28,"breakout_age":100.0,"target_share":23.27,"yptpa":2.535,"receptions_per_game":2.38,"height_adj_speed":106.09,"agility_score":66.0,"size_score":97.0,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":45.98,"dominator_rating":75.88,"breakout_age":100.0,"target_share":56.56,"yptpa":100.0,"receptions_per_game":23.0,"height_adj_speed":100.0,"agility_score":66.0,"size_score":97.0,"age_at_draft":100.0},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":13},{"name":"Bo Nix","position":"QB","college":"Oregon","total_score":71.03,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":95.9,"completion_pct":65.98,"yards_per_attempt":7.74,"td_int_ratio":4.69,"passer_rating":103.29,"years_as_starter":100.0,"rush_yards_per_season":29.93,"age_at_draft":88.0},"normalized_metrics":{"draft_capital":95.9,"completion_pct":63.92,"yards_per_attempt":45.67,"td_int_ratio":93.11,"passer_rating":4.11,"years_as_starter":100.0,"rush_yards_per_season":29.93,"age_at_draft":88.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":14},{"name":"Trey Benson","position":"RB","college":"Florida State","total_score":67.61,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":44.12,"dominator_rating":50.25,"breakout_age":90.4,"yards_per_carry":6.3,"target_share":12.92,"receptions_per_game":1.26,"speed_score":119.55,"bmi":29.29,"age_at_draft":92.0},"normalized_metrics":{"draft_capital":44.12,"dominator_rating":100.0,"breakout_age":90.4,"yards_per_carry":80.0,"target_share":18.22,"receptions_per_game":4.33,"speed_score":79.1,"bmi":61.29,"age_at_draft":92.0},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":15},{"name":"Ray Davis","position":"RB","college":"Kentucky","total_score":63.82,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":21.39,"dominator_rating":59.75,"breakout_age":76.0,"yards_per_carry":5.78,"target_share":33.66,"receptions_per_game":2.24,"speed_score":105.8,"bmi":30.85,"age_at_draft":75.2},"normalized_metrics":{"draft_capital":21.39,"dominator_rating":100.0,"breakout_age":76.0,"yards_per_carry":65.14,"target_share":95.04,"receptions_per_game":20.67,"speed_score":51.6,"bmi":83.57,"age_at_draft":75.2},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":16},{"name":"Blake Corum","position":"RB","college":"Michigan","total_score":62.84,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":40.02,"dominator_rating":68.37,"breakout_age":78.4,"yards_per_carry":6.2,"target_share":21.12,"receptions_per_game":1.81,"speed_score":92.86,"bmi":30.25,"age_at_draft":85.6},"normalized_metrics":{"draft_capital":40.02,"dominator_rating":100.0,"breakout_age":78.4,"yards_per_carry":77.14,"target_share":48.59,"receptions_per_game":13.5,"speed_score":25.72,"bmi":75.0,"age_at_draft":85.6},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":17},{"name":"MarShawn Lloyd","position":"RB","college":"USC","total_score":58.93,"tier":"Tier 4","dynasty_value":"4th Round / Stash","raw_metrics":{"draft_capital":43.0,"dominator_rating":27.68,"breakout_age":88.0,"yards_per_carry":5.71,"target_share":15.29,"receptions_per_game":2.58,"speed_score":105.5,"bmi":30.27,"age_at_draft":95.2},"normalized_metrics":{"draft_capital":43.0,"dominator_rating":61.5,"breakout_age":88.0,"yards_per_carry":63.14,"target_share":27.0,"receptions_per_game":26.33,"speed_score":51.0,"bmi":75.29,"age_at_draft":95.2},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":18},{"name":"Theo Johnson","position":"TE","college":"Penn State","total_score":57.09,"tier":"Tier 4","dynasty_value":"4th Round / Stash","raw_metrics":{"draft_capital":19.9,"dominator_rating":21.62,"breakout_age":90.4,"target_share":20.0,"yptpa":1.861,"receptions_per_game":1.27,"height_adj_speed":105.9,"agility_score":62.6,"size_score":93.0,"age_at_draft":87.2},"normalized_metrics":{"draft_capital":19.9,"dominator_rating":42.56,"breakout_age":90.4,"target_share":44.44,"yptpa":100.0,"receptions_per_game":4.5,"height_adj_speed":100.0,"agility_score":62.6,"size_score":93.0,"age_at_draft":87.2},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":19},{"name":"Cade Stover","position":"TE","college":"Ohio State","total_score":53.02,"tier":"Tier 4","dynasty_value":"4th Round / Stash","raw_metrics":{"draft_capital":5.0,"dominator_rating":22.1,"breakout_age":78.4,"target_share":22.04,"yptpa":1.927,"receptions_per_game":1.18,"height_adj_speed":100.69,"agility_score":56.4,"size_score":95.4,"age_at_draft":82.4},"normalized_metrics":{"draft_capital":5.0,"dominator_rating":44.06,"breakout_age":78.4,"target_share":52.0,"yptpa":100.0,"receptions_per_game":3.0,"height_adj_speed":100.0,"agility_score":56.4,"size_score":95.4,"age_at_draft":82.4},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":20}];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let activePos = 'ALL', activeTier = 'ALL', minScore = 0;
+let sortKey = 'rank', sortAsc = true;
+let selectedPlayer = null;
+let radarInstance = null;
+
+// Position colors
+const POS_COLOR = { QB:'#4FC3F7', RB:'#69F0AE', WR:'#FFD740', TE:'#FF7043' };
+const TIER_COLOR = { 'Tier 1':'#00E676','Tier 2':'#00D4FF','Tier 3':'#FFD700','Tier 4':'#FF9800','Tier 5':'#FF3D57' };
+
+function scoreColor(s) {
+  if (s >= 90) return '#00E676';
+  if (s >= 75) return '#00D4FF';
+  if (s >= 60) return '#FFD700';
+  if (s >= 45) return '#FF9800';
+  return '#FF3D57';
+}
+
+function metricLabel(k) {
+  const map = { draft_capital:'Draft Capital', dominator_rating:'Dominator Rtg', breakout_age:'Breakout Age',
+    yptpa:'YPTPA', target_share:'Target Share', yards_per_reception:'Yds/Rec', speed_score:'Speed Score',
+    size_score:'Size Score', age_at_draft:'Age Score', completion_pct:'Comp%', yards_per_attempt:'YPA',
+    td_int_ratio:'TD:INT', passer_rating:'Passer Rtg', years_as_starter:'Yrs Starter',
+    rush_yards_per_season:'Rush Yds/Szn', yards_per_carry:'Yds/Carry', receptions_per_game:'Rec/Game',
+    bmi:'BMI Score', height_adj_speed:'Height-Adj Speed', agility_score:'Agility' };
+  return map[k] || k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+
+// ── FILTERING ─────────────────────────────────────────────────────────────────
+function getFiltered() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  return PLAYERS.filter(p => {
+    if (activePos !== 'ALL' && p.position !== activePos) return false;
+    if (activeTier !== 'ALL' && p.tier !== activeTier) return false;
+    if (p.total_score < minScore) return false;
+    if (q && !p.name.toLowerCase().includes(q) && !p.college.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b) => {
+    let av = a[sortKey] ?? 0, bv = b[sortKey] ?? 0;
+    if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortAsc ? av - bv : bv - av;
+  });
+}
+
+function filterPos(pos) {
+  activePos = pos;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    if (b.onclick && b.onclick.toString().includes('filterPos')) b.classList.remove('active');
+  });
+  event.target.closest('.filter-btn').classList.add('active');
+  applyFilters();
+}
+
+function filterTier(tier) {
+  activeTier = tier;
+  document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+  event.target.closest('.filter-btn').classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  minScore = parseInt(document.getElementById('scoreFilter').value);
+  renderTable();
+  renderCards();
+  updateHeaderStats();
+}
+
+// ── SORT ──────────────────────────────────────────────────────────────────────
+function sortBy(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = key === 'rank'; }
+  document.querySelectorAll('th').forEach(th => {
+    th.classList.remove('sorted');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = '↕';
+  });
+  const ths = document.querySelectorAll('th');
+  const keyMap = { rank: 0, name: 1, position: 2, total_score: 3 };
+  if (keyMap[key] !== undefined) {
+    ths[keyMap[key]].classList.add('sorted');
+    ths[keyMap[key]].querySelector('.sort-icon').textContent = sortAsc ? '↑' : '↓';
+  }
+  renderTable();
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
+function renderTable() {
+  const data = getFiltered();
+  const tbody = document.getElementById('rankBody');
+  document.getElementById('countBadge').textContent = `${data.length} player${data.length!==1?'s':''}`;
+
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">🏈</div>No players match current filters</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map((p, i) => {
+    const sc = p.total_score;
+    const color = scoreColor(sc);
+    const tierClass = p.tier.replace(' ','-');
+    const isTop = i < 3 && sortKey === 'rank' && sortAsc;
+    const sel = selectedPlayer === p.name ? ' selected' : '';
+    return `
+    <tr onclick="showDetail('${p.name}')" class="${sel}">
+      <td><div class="rank-num ${isTop?'top3':''}">${p.rank}</div></td>
+      <td>
+        <div class="player-name">${p.name}</div>
+        <div class="player-college">${p.college}</div>
+      </td>
+      <td><span class="pos-badge ${p.position}">${p.position}</span></td>
+      <td>
+        <div class="score-cell">
+          <span class="score-num" style="color:${color}">${sc.toFixed(1)}</span>
+          <div class="score-bar-bg">
+            <div class="score-bar" style="width:${sc}%;background:${color}"></div>
+          </div>
+        </div>
+      </td>
+      <td><span class="tier-badge ${tierClass}">${p.tier}</span></td>
+      <td><div class="dynasty-val">${p.dynasty_value}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── DETAIL PANEL ──────────────────────────────────────────────────────────────
+function showDetail(name) {
+  const p = PLAYERS.find(x => x.name === name);
+  if (!p) return;
+  selectedPlayer = p.name;
+  renderTable(); // re-highlight
+
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  document.getElementById('dp-name').textContent = p.name;
+  const posEl = document.getElementById('dp-pos');
+  posEl.textContent = p.position;
+  posEl.className = `pos-badge ${p.position}`;
+  document.getElementById('dp-college').textContent = p.college;
+
+  const sc = p.total_score;
+  const color = scoreColor(sc);
+  const circle = document.getElementById('dp-circle');
+  circle.style.borderColor = color;
+  circle.style.color = color;
+  document.getElementById('dp-score-num').textContent = sc.toFixed(1);
+
+  // Info boxes
+  const infoKeys = [
+    ['Tier', p.tier],
+    ['Dynasty Value', p.dynasty_value],
+    ['Overall Rank', `#${p.rank}`],
+  ];
+  document.getElementById('dp-info-grid').innerHTML = infoKeys.map(([k,v]) => `
+    <div class="detail-info-box">
+      <div class="detail-info-val" style="color:${k==='Tier'?TIER_COLOR[p.tier]:'var(--bright)'}">${v}</div>
+      <div class="detail-info-key">${k}</div>
+    </div>`).join('');
+
+  // Metric bars
+  const nm = p.normalized_metrics;
+  const wt = p.weights;
+  const bars = document.getElementById('dp-metric-bars');
+  bars.innerHTML = Object.entries(nm).map(([k,v]) => {
+    const pct = Math.min(100, Math.max(0, v));
+    const c = scoreColor(pct);
+    const w = wt[k] ? `${(wt[k]*100).toFixed(0)}% weight` : '';
+    return `
+    <div class="metric-row">
+      <div class="metric-header">
+        <span class="metric-name">${metricLabel(k)}</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="metric-weight">${w}</span>
+          <span class="metric-score-txt" style="color:${c}">${pct.toFixed(0)}</span>
+        </div>
+      </div>
+      <div class="metric-bar-bg">
+        <div class="metric-bar-fill" style="width:${pct}%;background:${c}"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Radar chart
+  drawRadar(p);
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('visible');
+  selectedPlayer = null;
+  renderTable();
+}
+
+function drawRadar(p) {
+  const canvas = document.getElementById('radarChart');
+  const ctx = canvas.getContext('2d');
+  const nm = p.normalized_metrics;
+  const keys = Object.keys(nm);
+  const vals = keys.map(k => Math.min(100, Math.max(0, nm[k])));
+  const N = keys.length;
+  const cx = 120, cy = 120, r = 90;
+  const color = scoreColor(p.total_score);
+
+  canvas.width = 240; canvas.height = 240;
+  ctx.clearRect(0, 0, 240, 240);
+
+  // Grid
+  ctx.strokeStyle = '#1E2D40';
+  ctx.lineWidth = 1;
+  for (let ring = 1; ring <= 4; ring++) {
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+      const rr = (ring / 4) * r;
+      const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // Axes
+  keys.forEach((_, i) => {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    ctx.strokeStyle = '#1E2D40'; ctx.stroke();
+  });
+
+  // Fill
+  ctx.beginPath();
+  vals.forEach((v, i) => {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const rr = (v / 100) * r;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = color + '25';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Dots
+  vals.forEach((v, i) => {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const rr = (v / 100) * r;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 3, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+  });
+
+  // Labels
+  ctx.fillStyle = '#4A6070';
+  ctx.font = '9px DM Mono';
+  ctx.textAlign = 'center';
+  keys.forEach((k, i) => {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+    const lx = cx + Math.cos(a) * (r + 14);
+    const ly = cy + Math.sin(a) * (r + 14);
+    ctx.fillText(metricLabel(k).substring(0,8), lx, ly + 3);
+  });
+}
+
+// ── CARDS ─────────────────────────────────────────────────────────────────────
+function renderCards() {
+  const data = getFiltered();
+  const grid = document.getElementById('cardsGrid');
+  if (!data.length) {
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🏈</div>No players found</div>';
+    return;
+  }
+  grid.innerHTML = data.map(p => {
+    const sc = p.total_score;
+    const color = scoreColor(sc);
+    const tierClass = p.tier.replace(' ','-');
+    return `
+    <div class="overview-card ${p.position}" onclick="showTab('rankings');showDetail('${p.name}')">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="oc-rank">#${p.rank} Overall</div>
+        <span class="pos-badge ${p.position}" style="font-size:10px">${p.position}</span>
+      </div>
+      <div class="oc-name">${p.name}</div>
+      <div class="oc-score" style="color:${color}">${sc.toFixed(1)}</div>
+      <div class="oc-footer">
+        <span class="oc-tier tier-badge ${tierClass}">${p.tier}</span>
+        <span class="oc-college">${p.college}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── COMPARE ──────────────────────────────────────────────────────────────────
+function initCompare() {
+  ['cmpA','cmpB'].forEach((id,i) => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = PLAYERS.map(p => `<option value="${p.name}">${p.name} (${p.position})</option>`).join('');
+    sel.selectedIndex = i;
+  });
+  renderCompare();
+}
+
+function renderCompare() {
+  const pA = PLAYERS.find(p => p.name === document.getElementById('cmpA').value);
+  const pB = PLAYERS.find(p => p.name === document.getElementById('cmpB').value);
+  if (!pA || !pB) return;
+
+  const allKeys = [...new Set([...Object.keys(pA.normalized_metrics), ...Object.keys(pB.normalized_metrics)])];
+  const colorA = '#00D4FF', colorB = '#FF6B35';
+
+  document.getElementById('cmpContent').innerHTML = `
+    <div class="cmp-header">
+      <div class="cmp-head" style="color:${colorA}">${pA.name}</div>
+      <div style="text-align:center;font-size:10px;color:var(--muted);padding-top:8px">METRIC</div>
+      <div class="cmp-head" style="color:${colorB}">${pB.name}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:4px;margin-bottom:12px">
+      <div style="text-align:center;font-size:24px;font-family:'Bebas Neue';color:${colorA}">${pA.total_score.toFixed(1)}</div>
+      <div style="text-align:center;font-size:10px;color:var(--muted);padding-top:8px">SCORE</div>
+      <div style="text-align:center;font-size:24px;font-family:'Bebas Neue';color:${colorB}">${pB.total_score.toFixed(1)}</div>
+    </div>
+    <div class="compare-bars">
+      ${allKeys.map(k => {
+        const a = Math.min(100, Math.max(0, pA.normalized_metrics[k] || 0));
+        const b = Math.min(100, Math.max(0, pB.normalized_metrics[k] || 0));
+        return `
+        <div class="cmp-row">
+          <div class="cmp-bar-row" style="justify-content:flex-end">
+            <span style="font-size:11px;color:${colorA};font-family:'DM Mono',monospace">${a.toFixed(0)}</span>
+            <div class="cmp-bar-a"><div class="cmp-fill-a" style="width:${a}%"></div></div>
+          </div>
+          <div class="cmp-label">${metricLabel(k)}</div>
+          <div class="cmp-bar-row">
+            <div class="cmp-bar-b"><div class="cmp-fill-b" style="width:${b}%"></div></div>
+            <span style="font-size:11px;color:${colorB};font-family:'DM Mono',monospace">${b.toFixed(0)}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── DISTRIBUTION CHARTS ───────────────────────────────────────────────────────
+function renderDistCharts() {
+  // Box-style scatter per position
+  const distCtx = document.getElementById('distChart').getContext('2d');
+  const posGroups = {};
+  PLAYERS.forEach(p => {
+    if (!posGroups[p.position]) posGroups[p.position] = [];
+    posGroups[p.position].push(p.total_score);
+  });
+
+  // Simple grouped bar
+  const positions = Object.keys(posGroups);
+  const avgs = positions.map(pos => {
+    const arr = posGroups[pos];
+    return arr.reduce((a,b) => a+b,0) / arr.length;
+  });
+  const maxes = positions.map(pos => Math.max(...posGroups[pos]));
+  const mins = positions.map(pos => Math.min(...posGroups[pos]));
+
+  new Chart(distCtx, {
+    type: 'bar',
+    data: {
+      labels: positions,
+      datasets: [
+        { label: 'Max Score', data: maxes, backgroundColor: positions.map(p => POS_COLOR[p] + '80'), borderColor: positions.map(p => POS_COLOR[p]), borderWidth: 2 },
+        { label: 'Avg Score', data: avgs, backgroundColor: positions.map(p => POS_COLOR[p] + '40'), borderColor: positions.map(p => POS_COLOR[p] + 'AA'), borderWidth: 1, borderDash: [4,4] },
+        { label: 'Min Score', data: mins, backgroundColor: positions.map(p => POS_COLOR[p] + '20'), borderColor: positions.map(p => POS_COLOR[p] + '60'), borderWidth: 1 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#4A6070', font: { family: 'DM Mono', size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#4A6070' }, grid: { color: '#1E2D40' } },
+        y: { ticks: { color: '#4A6070' }, grid: { color: '#1E2D40' }, min: 0, max: 100 }
+      }
+    }
+  });
+
+  // Scatter: draft capital vs score
+  const scCtx = document.getElementById('scatterChart').getContext('2d');
+  const scatterData = Object.entries(POS_COLOR).map(([pos, color]) => ({
+    label: pos,
+    data: PLAYERS.filter(p => p.position === pos).map(p => ({
+      x: p.normalized_metrics.draft_capital || 0,
+      y: p.total_score,
+      name: p.name
+    })),
+    backgroundColor: color + 'CC',
+    pointRadius: 8, pointHoverRadius: 10
+  }));
+
+  new Chart(scCtx, {
+    type: 'scatter',
+    data: { datasets: scatterData },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#4A6070', font: { family: 'DM Mono', size: 10 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.raw.name}: ${ctx.raw.y.toFixed(1)}` } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Draft Capital Score', color: '#4A6070' }, ticks: { color: '#4A6070' }, grid: { color: '#1E2D40' }, min: 0, max: 105 },
+        y: { title: { display: true, text: 'Overall Score', color: '#4A6070' }, ticks: { color: '#4A6070' }, grid: { color: '#1E2D40' }, min: 40, max: 100 }
+      }
+    }
+  });
+}
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+let chartsRendered = false;
+function showTab(tab) {
+  ['rankings','cards','compare','metrics'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', i === ['rankings','cards','compare','metrics'].indexOf(tab));
+  });
+  if (tab === 'compare') initCompare();
+  if (tab === 'metrics' && !chartsRendered) { chartsRendered = true; renderDistCharts(); }
+  if (tab === 'cards') renderCards();
+}
+
+// ── HEADER STATS ─────────────────────────────────────────────────────────────
+function updateHeaderStats() {
+  const data = getFiltered();
+  document.getElementById('hs-total').textContent = data.length;
+  document.getElementById('hs-t1').textContent = data.filter(p => p.tier === 'Tier 1').length;
+  const avg = data.length ? (data.reduce((a,b) => a+b.total_score, 0)/data.length).toFixed(1) : '—';
+  document.getElementById('hs-avg').textContent = avg;
+  document.getElementById('hs-top').textContent = data.length ? data[0].name.split(' ').pop() : '—';
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+(function init() {
+  // Load Chart.js dynamically
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+  script.onload = () => {};
+  document.head.appendChild(script);
+
+  renderTable();
+  renderCards();
+  updateHeaderStats();
+})();
+</script>
+</body>
+</html>
