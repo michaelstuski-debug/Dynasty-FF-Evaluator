@@ -1,0 +1,7 @@
+.env
+*.csv
+*.xlsx
+rankings_data.json
+__pycache__/
+*.pyc
+.DS_Store
