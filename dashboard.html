@@ -456,7 +456,428 @@
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────────────────────
-const PLAYERS = [{"name":"Malik Nabers","position":"WR","college":"LSU","total_score":95.7,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":98.14,"dominator_rating":52.64,"breakout_age":100.0,"yptpa":4.896,"target_share":41.79,"yards_per_reception":16.129411764705882,"speed_score":115.92,"size_score":96.5,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":98.14,"dominator_rating":100.0,"breakout_age":100.0,"yptpa":100.0,"target_share":100.0,"yards_per_reception":81.29,"speed_score":71.84,"size_score":96.5,"age_at_draft":100.0},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":1},{"name":"Rome Odunze","position":"WR","college":"Washington","total_score":94.25,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":97.02,"dominator_rating":43.61,"breakout_age":95.2,"yptpa":4.432,"target_share":34.19,"yards_per_reception":17.28301886792453,"speed_score":109.14,"size_score":91.9,"age_at_draft":99.2},"normalized_metrics":{"draft_capital":97.02,"dominator_rating":100.0,"breakout_age":95.2,"yptpa":100.0,"target_share":97.0,"yards_per_reception":92.83,"speed_score":58.28,"size_score":91.9,"age_at_draft":99.2},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":2},{"name":"Brock Bowers","position":"TE","college":"Georgia","total_score":93.42,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":95.53,"dominator_rating":49.52,"breakout_age":100.0,"target_share":45.71,"yptpa":5.002,"receptions_per_game":4.61,"height_adj_speed":113.18,"agility_score":71.55,"size_score":89.8,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":95.53,"dominator_rating":100.0,"breakout_age":100.0,"target_share":100.0,"yptpa":100.0,"receptions_per_game":60.17,"height_adj_speed":100.0,"agility_score":71.55,"size_score":89.8,"age_at_draft":100.0},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":3},{"name":"Brian Thomas Jr","position":"WR","college":"LSU","total_score":93.16,"tier":"Tier 1","dynasty_value":"1st Round Rookie Pick","raw_metrics":{"draft_capital":91.8,"dominator_rating":44.92,"breakout_age":94.0,"yptpa":3.875,"target_share":30.0,"yards_per_reception":17.78688524590164,"speed_score":118.91,"size_score":93.9,"age_at_draft":96.0},"normalized_metrics":{"draft_capital":91.8,"dominator_rating":100.0,"breakout_age":94.0,"yptpa":100.0,"target_share":81.48,"yards_per_reception":97.87,"speed_score":77.82,"size_score":93.9,"age_at_draft":96.0},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":4},{"name":"Xavier Worthy","position":"WR","college":"Texas","total_score":89.79,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":89.94,"dominator_rating":42.98,"breakout_age":97.6,"yptpa":3.864,"target_share":35.82,"yards_per_reception":15.070921985815604,"speed_score":105.05,"size_score":70.5,"age_at_draft":97.6},"normalized_metrics":{"draft_capital":89.94,"dominator_rating":100.0,"breakout_age":97.6,"yptpa":100.0,"target_share":100.0,"yards_per_reception":70.71,"speed_score":50.1,"size_score":70.5,"age_at_draft":97.6},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":5},{"name":"Ladd McConkey","position":"WR","college":"Georgia","total_score":83.72,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":75.78,"dominator_rating":38.0,"breakout_age":90.4,"yptpa":3.798,"target_share":37.69,"yards_per_reception":14.31159420289855,"speed_score":99.62,"size_score":87.5,"age_at_draft":94.4},"normalized_metrics":{"draft_capital":75.78,"dominator_rating":93.75,"breakout_age":90.4,"yptpa":100.0,"target_share":100.0,"yards_per_reception":63.12,"speed_score":39.24,"size_score":87.5,"age_at_draft":94.4},"weights":{"draft_capital":0.22,"dominator_rating":0.18,"breakout_age":0.1,"yptpa":0.1,"target_share":0.1,"yards_per_reception":0.08,"speed_score":0.08,"size_score":0.04,"age_at_draft":0.1},"rank":6},{"name":"Caleb Williams","position":"QB","college":"USC","total_score":82.25,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":100.0,"completion_pct":69.59,"yards_per_attempt":10.34,"td_int_ratio":3.58,"passer_rating":131.83,"years_as_starter":84.0,"rush_yards_per_season":60.27,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":100.0,"completion_pct":78.36,"yards_per_attempt":89.0,"td_int_ratio":68.44,"passer_rating":39.79,"years_as_starter":84.0,"rush_yards_per_season":60.27,"age_at_draft":100.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":7},{"name":"Jayden Daniels","position":"QB","college":"LSU","total_score":79.91,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":99.63,"completion_pct":69.28,"yards_per_attempt":7.78,"td_int_ratio":5.5,"passer_rating":102.05,"years_as_starter":100.0,"rush_yards_per_season":89.96,"age_at_draft":95.2},"normalized_metrics":{"draft_capital":99.63,"completion_pct":77.12,"yards_per_attempt":46.33,"td_int_ratio":100.0,"passer_rating":2.56,"years_as_starter":100.0,"rush_yards_per_season":89.96,"age_at_draft":95.2},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":8},{"name":"Jonathon Brooks","position":"RB","college":"Texas","total_score":79.48,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":71.31,"dominator_rating":37.66,"breakout_age":94.0,"yards_per_carry":5.96,"target_share":37.14,"receptions_per_game":3.94,"speed_score":109.05,"bmi":29.29,"age_at_draft":99.2},"normalized_metrics":{"draft_capital":71.31,"dominator_rating":92.69,"breakout_age":94.0,"yards_per_carry":70.29,"target_share":100.0,"receptions_per_game":49.0,"speed_score":58.1,"bmi":61.29,"age_at_draft":99.2},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":9},{"name":"Ben Sinnott","position":"TE","college":"Kansas State","total_score":78.69,"tier":"Tier 2","dynasty_value":"Early 2nd Round","raw_metrics":{"draft_capital":65.73,"dominator_rating":33.07,"breakout_age":97.6,"target_share":29.78,"yptpa":3.138,"receptions_per_game":2.64,"height_adj_speed":98.26,"agility_score":62.3,"size_score":97.0,"age_at_draft":96.8},"normalized_metrics":{"draft_capital":65.73,"dominator_rating":78.34,"breakout_age":97.6,"target_share":80.67,"yptpa":100.0,"receptions_per_game":27.33,"height_adj_speed":98.26,"agility_score":62.3,"size_score":97.0,"age_at_draft":96.8},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":10},{"name":"Drake Maye","position":"QB","college":"North Carolina","total_score":73.78,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":99.25,"completion_pct":67.57,"yards_per_attempt":7.93,"td_int_ratio":4.5,"passer_rating":107.21,"years_as_starter":84.0,"rush_yards_per_season":34.93,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":99.25,"completion_pct":70.28,"yards_per_attempt":48.83,"td_int_ratio":88.89,"passer_rating":9.01,"years_as_starter":84.0,"rush_yards_per_season":34.93,"age_at_draft":100.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":11},{"name":"JJ McCarthy","position":"QB","college":"Michigan","total_score":73.19,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":96.65,"completion_pct":67.99,"yards_per_attempt":8.02,"td_int_ratio":6.55,"passer_rating":109.63,"years_as_starter":84.0,"rush_yards_per_season":10.8,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":96.65,"completion_pct":71.96,"yards_per_attempt":50.33,"td_int_ratio":100.0,"passer_rating":12.04,"years_as_starter":84.0,"rush_yards_per_season":10.8,"age_at_draft":100.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":12},{"name":"Ja'Tavion Sanders","position":"TE","college":"Texas","total_score":72.54,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":45.98,"dominator_rating":32.28,"breakout_age":100.0,"target_share":23.27,"yptpa":2.535,"receptions_per_game":2.38,"height_adj_speed":106.09,"agility_score":66.0,"size_score":97.0,"age_at_draft":100.0},"normalized_metrics":{"draft_capital":45.98,"dominator_rating":75.88,"breakout_age":100.0,"target_share":56.56,"yptpa":100.0,"receptions_per_game":23.0,"height_adj_speed":100.0,"agility_score":66.0,"size_score":97.0,"age_at_draft":100.0},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":13},{"name":"Bo Nix","position":"QB","college":"Oregon","total_score":71.03,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":95.9,"completion_pct":65.98,"yards_per_attempt":7.74,"td_int_ratio":4.69,"passer_rating":103.29,"years_as_starter":100.0,"rush_yards_per_season":29.93,"age_at_draft":88.0},"normalized_metrics":{"draft_capital":95.9,"completion_pct":63.92,"yards_per_attempt":45.67,"td_int_ratio":93.11,"passer_rating":4.11,"years_as_starter":100.0,"rush_yards_per_season":29.93,"age_at_draft":88.0},"weights":{"draft_capital":0.25,"completion_pct":0.1,"yards_per_attempt":0.12,"td_int_ratio":0.12,"passer_rating":0.1,"years_as_starter":0.08,"rush_yards_per_season":0.08,"age_at_draft":0.15},"rank":14},{"name":"Trey Benson","position":"RB","college":"Florida State","total_score":67.61,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":44.12,"dominator_rating":50.25,"breakout_age":90.4,"yards_per_carry":6.3,"target_share":12.92,"receptions_per_game":1.26,"speed_score":119.55,"bmi":29.29,"age_at_draft":92.0},"normalized_metrics":{"draft_capital":44.12,"dominator_rating":100.0,"breakout_age":90.4,"yards_per_carry":80.0,"target_share":18.22,"receptions_per_game":4.33,"speed_score":79.1,"bmi":61.29,"age_at_draft":92.0},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":15},{"name":"Ray Davis","position":"RB","college":"Kentucky","total_score":63.82,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":21.39,"dominator_rating":59.75,"breakout_age":76.0,"yards_per_carry":5.78,"target_share":33.66,"receptions_per_game":2.24,"speed_score":105.8,"bmi":30.85,"age_at_draft":75.2},"normalized_metrics":{"draft_capital":21.39,"dominator_rating":100.0,"breakout_age":76.0,"yards_per_carry":65.14,"target_share":95.04,"receptions_per_game":20.67,"speed_score":51.6,"bmi":83.57,"age_at_draft":75.2},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":16},{"name":"Blake Corum","position":"RB","college":"Michigan","total_score":62.84,"tier":"Tier 3","dynasty_value":"Late 2nd / 3rd Round","raw_metrics":{"draft_capital":40.02,"dominator_rating":68.37,"breakout_age":78.4,"yards_per_carry":6.2,"target_share":21.12,"receptions_per_game":1.81,"speed_score":92.86,"bmi":30.25,"age_at_draft":85.6},"normalized_metrics":{"draft_capital":40.02,"dominator_rating":100.0,"breakout_age":78.4,"yards_per_carry":77.14,"target_share":48.59,"receptions_per_game":13.5,"speed_score":25.72,"bmi":75.0,"age_at_draft":85.6},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":17},{"name":"MarShawn Lloyd","position":"RB","college":"USC","total_score":58.93,"tier":"Tier 4","dynasty_value":"4th Round / Stash","raw_metrics":{"draft_capital":43.0,"dominator_rating":27.68,"breakout_age":88.0,"yards_per_carry":5.71,"target_share":15.29,"receptions_per_game":2.58,"speed_score":105.5,"bmi":30.27,"age_at_draft":95.2},"normalized_metrics":{"draft_capital":43.0,"dominator_rating":61.5,"breakout_age":88.0,"yards_per_carry":63.14,"target_share":27.0,"receptions_per_game":26.33,"speed_score":51.0,"bmi":75.29,"age_at_draft":95.2},"weights":{"draft_capital":0.2,"dominator_rating":0.18,"breakout_age":0.12,"yards_per_carry":0.1,"target_share":0.08,"receptions_per_game":0.07,"speed_score":0.1,"bmi":0.05,"age_at_draft":0.1},"rank":18},{"name":"Theo Johnson","position":"TE","college":"Penn State","total_score":57.09,"tier":"Tier 4","dynasty_value":"4th Round / Stash","raw_metrics":{"draft_capital":19.9,"dominator_rating":21.62,"breakout_age":90.4,"target_share":20.0,"yptpa":1.861,"receptions_per_game":1.27,"height_adj_speed":105.9,"agility_score":62.6,"size_score":93.0,"age_at_draft":87.2},"normalized_metrics":{"draft_capital":19.9,"dominator_rating":42.56,"breakout_age":90.4,"target_share":44.44,"yptpa":100.0,"receptions_per_game":4.5,"height_adj_speed":100.0,"agility_score":62.6,"size_score":93.0,"age_at_draft":87.2},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":19},{"name":"Cade Stover","position":"TE","college":"Ohio State","total_score":53.02,"tier":"Tier 4","dynasty_value":"4th Round / Stash","raw_metrics":{"draft_capital":5.0,"dominator_rating":22.1,"breakout_age":78.4,"target_share":22.04,"yptpa":1.927,"receptions_per_game":1.18,"height_adj_speed":100.69,"agility_score":56.4,"size_score":95.4,"age_at_draft":82.4},"normalized_metrics":{"draft_capital":5.0,"dominator_rating":44.06,"breakout_age":78.4,"target_share":52.0,"yptpa":100.0,"receptions_per_game":3.0,"height_adj_speed":100.0,"agility_score":56.4,"size_score":95.4,"age_at_draft":82.4},"weights":{"draft_capital":0.2,"dominator_rating":0.15,"breakout_age":0.1,"target_share":0.1,"yptpa":0.08,"receptions_per_game":0.08,"height_adj_speed":0.08,"agility_score":0.07,"size_score":0.05,"age_at_draft":0.09},"rank":20}];
+const PLAYERS = [
+  {
+    "name": "Patrick Bryant",
+    "position": "WR",
+    "college": "Illinois",
+    "total_score": 56.62,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 55.62,
+      "breakout_age": 40.0,
+      "yptpa": 5.608,
+      "target_share": 0.0,
+      "yards_per_reception": 15.451851851851853,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 100,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 74.52,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 1
+  },
+  {
+    "name": "Elic Ayomanor",
+    "position": "WR",
+    "college": "Stanford",
+    "total_score": 56.06,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 61.88,
+      "breakout_age": 40.0,
+      "yptpa": 4.716,
+      "target_share": 0.0,
+      "yards_per_reception": 14.752,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 100,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 67.52,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 2
+  },
+  {
+    "name": "Jordyn Tyson",
+    "position": "WR",
+    "college": "Colorado",
+    "total_score": 55.81,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 81.27,
+      "breakout_age": 40.0,
+      "yptpa": 6.41,
+      "target_share": 0.0,
+      "yards_per_reception": 14.443037974683545,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 100,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 64.43,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 3
+  },
+  {
+    "name": "Germie Bernard",
+    "position": "WR",
+    "college": "Washington",
+    "total_score": 55.63,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 46.27,
+      "breakout_age": 40.0,
+      "yptpa": 5.954,
+      "target_share": 0.0,
+      "yards_per_reception": 14.212903225806452,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 100,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 62.13,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 4
+  },
+  {
+    "name": "Omar Cooper Jr",
+    "position": "WR",
+    "college": "Indiana",
+    "total_score": 55.36,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 37.39,
+      "breakout_age": 40.0,
+      "yptpa": 4.488,
+      "target_share": 0.0,
+      "yards_per_reception": 15.706896551724139,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 91.84,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 77.07,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 5
+  },
+  {
+    "name": "Makai Lemon",
+    "position": "WR",
+    "college": "USC",
+    "total_score": 55.32,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 38.82,
+      "breakout_age": 40.0,
+      "yptpa": 4.781,
+      "target_share": 0.0,
+      "yards_per_reception": 14.656934306569344,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 96.31,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 66.57,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 6
+  },
+  {
+    "name": "Denzel Boston",
+    "position": "WR",
+    "college": "Washington",
+    "total_score": 55.05,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 45.88,
+      "breakout_age": 40.0,
+      "yptpa": 4.814,
+      "target_share": 0.0,
+      "yards_per_reception": 13.492424242424242,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 100,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 54.92,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 7
+  },
+  {
+    "name": "Carnell Tate",
+    "position": "WR",
+    "college": "Ohio State",
+    "total_score": 54.95,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 37.0,
+      "breakout_age": 40.0,
+      "yptpa": 4.588,
+      "target_share": 0.0,
+      "yards_per_reception": 15.47107438016529,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 90.62,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 74.71,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 8
+  },
+  {
+    "name": "Kevin Concepcion",
+    "position": "WR",
+    "college": "Texas A&M",
+    "total_score": 53.85,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 55.96,
+      "breakout_age": 40.0,
+      "yptpa": 5.434,
+      "target_share": 0.0,
+      "yards_per_reception": 11.983783783783784,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 100,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 39.84,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 9
+  },
+  {
+    "name": "Evan Stewart",
+    "position": "WR",
+    "college": "Texas A&M",
+    "total_score": 52.5,
+    "tier": "Tier 4",
+    "dynasty_value": "4th Round / Stash",
+    "raw_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 36.47,
+      "breakout_age": 40.0,
+      "yptpa": 4.353,
+      "target_share": 0.0,
+      "yards_per_reception": 12.776978417266188,
+      "speed_score": 100.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "normalized_metrics": {
+      "draft_capital": 30.0,
+      "dominator_rating": 88.97,
+      "breakout_age": 40.0,
+      "yptpa": 100,
+      "target_share": 0,
+      "yards_per_reception": 47.77,
+      "speed_score": 40.0,
+      "size_score": 96.5,
+      "age_at_draft": 50.0
+    },
+    "weights": {
+      "draft_capital": 0.22,
+      "dominator_rating": 0.18,
+      "breakout_age": 0.1,
+      "yptpa": 0.1,
+      "target_share": 0.1,
+      "yards_per_reception": 0.08,
+      "speed_score": 0.08,
+      "size_score": 0.04,
+      "age_at_draft": 0.1
+    },
+    "rank": 10
+  }
+];
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let activePos = 'ALL', activeTier = 'ALL', minScore = 0;
